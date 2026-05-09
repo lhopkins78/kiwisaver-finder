@@ -250,6 +250,10 @@ main {
     color: var(--green);
 }
 
+.fund-stats .fee.medium {
+    color: var(--amber);
+}
+
 .fund-stats .returns {
     font-size: 0.85rem;
     color: var(--text-muted);
