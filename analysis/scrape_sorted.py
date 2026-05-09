@@ -106,7 +106,9 @@ def parse_fund_card(html_str):
         except:
             pass
 
-    # Asset class percentages — second entry's data value is the actual %
+    # Asset class percentages — first entry's data[0] is the % for this asset class
+    # Pattern: data=[pct] where pct is the allocation % for this asset class
+    # e.g. Shares: 0.23%, Property: 0.14%, etc.
     asset_map = {
         'Shares': 'asset_shares_pct',
         'Property': 'asset_property_pct',
@@ -121,11 +123,11 @@ def parse_fund_card(html_str):
             continue
         try:
             dataset = json.loads(dataset_str)
-            if dataset and len(dataset) >= 2:
-                # Second entry's data[0] = percentage for this asset class
-                pct = float(dataset[1]['data'][0])
+            if dataset and len(dataset) >= 1:
+                # First entry data[0] is the % for this asset class
+                pct = float(dataset[0]['data'][0])
                 key = asset_map[label]
-                fund[key] = round(pct, 2)
+                fund[key] = round(abs(pct), 2)
         except:
             pass
 
