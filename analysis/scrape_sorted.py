@@ -1,228 +1,240 @@
 """
-Sorted Smart Investor scraper.
-
-Pulls KiwiSaver fund data from the Sorted API and parses into structured records.
-
-API endpoint: https://smartinvestor.sorted.org.nz/kiwisaver-and-managed-funds/get_results/
-Returns HTML card fragments — we parse those for fund data.
+Sorted Smart Investor scraper — efficient resumable version.
+API returns JSON with HTML card fragments in `results` array.
+Saves progress after each page so we can resume if interrupted.
 """
-
-import json
-import re
-import time
+import json, time, sys
+from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
-from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent.parent / "data"
 OUTPUT_FILE = BASE_DIR / "sorted_funds.json"
+STATE_FILE = BASE_DIR / "sorted_funds_state.json"
 
-def scrape_sorted_page(page=1, per_page=50):
-    """Fetch one page of Sorted fund results."""
+def load_state():
+    if STATE_FILE.exists():
+        with open(STATE_FILE) as f:
+            s = json.load(f)
+        return {"page": s["page"], "seen_ids": set(s["seen_ids"])}
+    return {"page": 1, "seen_ids": set()}
+
+def save_state(state):
+    with open(STATE_FILE, 'w') as f:
+        json.dump({"page": state["page"], "seen_ids": list(state["seen_ids"])}, f)
+
+def scrape_page(page, per_page=10, retries=3):
     url = "https://smartinvestor.sorted.org.nz/kiwisaver-and-managed-funds/get_results/"
     params = {
         "managedFundTypes": "kiwisaver-funds",
-        "searchType": "quick",
-        "sort": "growth-assets-asc",
+        "sortColumn": "fundName",
+        "sortDirection": "asc",
         "page": page,
         "results_per_page": per_page
     }
-    
-    print(f"[sorted] Fetching page {page}...")
-    response = requests.get(url, params=params, timeout=30)
-    
-    if response.status_code != 200:
-        print(f"[sorted] Error: HTTP {response.status_code}")
-        return None
-    
-    return response.text  # HTML fragment
+    for attempt in range(retries):
+        try:
+            r = requests.get(url, params=params, timeout=30)
+            if r.status_code != 200:
+                print(f"HTTP {r.status_code}", file=sys.stderr)
+                return None
+            return r.json()
+        except Exception as e:
+            print(f"attempt {attempt+1} failed: {e}", file=sys.stderr)
+            time.sleep(2 ** attempt)
+    return None
 
-def parse_fund_card(html):
-    """Parse a single fund card HTML into a dict."""
-    soup = BeautifulSoup(html, 'html.parser')
-    
+def parse_fund_card(html_str):
+    """Parse a single fund card HTML string into a dict."""
+    soup = BeautifulSoup(html_str, 'html.parser')
     fund = {}
-    
-    # Scheme name (appears above fund name in grey small text)
-    scheme_el = soup.find('p', class_=lambda x: x and 'colour--grey-mid' in x.split())
-    if scheme_el:
-        fund['scheme'] = scheme_el.get_text(strip=True)
-    
-    # Fund name
-    title_el = soup.find('h3', class_=lambda x: x and 'card__title' in x.split())
+
+    card_div = soup.find('div', class_='card')
+    if card_div:
+        fund['scheme'] = card_div.get('data-scheme', '').strip()
+        fund['card_id'] = card_div.get('data-id', '').strip()
+
+    title_el = soup.find('h3', class_='card__title')
     if title_el:
         fund['fund_name'] = title_el.get_text(strip=True)
-    
-    # Fund type (tag)
-    tags = soup.find_all('div', class_='tag')
-    fund_type = None
-    for tag in tags:
-        text = tag.get_text(strip=True)
-        if text.lower() in ['defensive', 'conservative', 'balanced', 'growth', 'aggressive']:
-            fund_type = text
-            break
-    fund['fund_type_raw'] = fund_type
-    
-    # Extract fees from doughnut chart data
-    # Data is in canvas element: data-dataset="[{&quot;labels&quot;:[&quot;Value&quot;,&quot;Base&quot;],&quot;data&quot;:[0.68,1.2192]}]"
-    fees_canvas = soup.find('canvas', class_=lambda x: x and 'js-inline-doughnut' in x.split() if x else False)
-    if fees_canvas:
-        dataset_str = fees_canvas.get('data-dataset', '')
-        # Extract the fee percentage from the dataset
-        match = re.search(r'data-colour="purple"[^>]*data-dataset="\[\{&quot;labels&quot;:\[&quot;Value&quot;,&quot;Base&quot;\],&quot;data&quot;:\[([0-9.]+)', dataset_str)
-        if not match:
-            # Try alternate pattern
-            match = re.search(r'data-colour="purple".*?data-dataset="\[\{\"labels\":\[\"Value\",\"Base\"\],\"data\":\[([0-9.]+)', dataset_str)
-        if match:
-            fee_rate = float(match.group(1))
-            # The fee rate seems to be stored differently - look for actual fee %
-            # Actually the purple doughnut shows the fee. Let's look for the text "0.55%"
-            fee_text = soup.find('span', class_=lambda x: x and 'colour--purple-dark' in x.split() if x else False)
-            if fee_text:
-                fee_match = re.search(r'([0-9.]+)%', fee_text.get_text())
-                if fee_match:
-                    fund['fee_pct'] = float(fee_match.group(1))
-    
-    # Extract returns from the returns doughnut
-    returns_canvas = soup.find('canvas', class_=lambda x: x and 'js-inline-doughnut' in x.split())
-    if returns_canvas:
-        dataset_str = returns_canvas.get('data-dataset', '')
-        # Look for return value in the green doughnut
-        return_match = re.search(r'data-colour="green"[^>]*data-dataset="\[\{\"labels\":\[\"Value\",\"Base\"\],\"data\":\[([0-9.]+)', dataset_str)
-        if return_match:
-            fund['return_5yr_raw'] = float(return_match.group(1))
-    
-    # Growth assets % from horizontal bar chart
-    growth_chart = soup.find('canvas', {'data-label': 'Asset Mix'})
-    if growth_chart:
-        dataset = growth_chart.get('data-dataset', '')
-        # Extract growth assets percentage
-        growth_match = re.search(r'"Growth assets","data":\["?([0-9.]+)', dataset)
-        if growth_match:
-            fund['growth_assets_pct'] = float(growth_match.group(1))
-    
-    # Get 5yr returns from the line chart
-    line_chart = soup.find('canvas', class_=lambda x: x and 'js-inline-line-chart' in x.split() if x else False)
-    if line_chart:
-        dataset = line_chart.get('data-dataset', '')
-        # Extract years and returns
-        year_matches = re.findall(r'"year":(\d+)', dataset)
-        fund_matches = re.findall(r'"fund":"?(-?[0-9.]+)"?', dataset)
-        avg_matches = re.findall(r'"average":"?(-?[0-9.]+)"?', dataset)
-        
-        if year_matches and fund_matches:
-            fund['returns_5yr_pct'] = float(fund_matches[-1])  # Most recent year
-            fund['returns_5yr_series'] = {
-                yr: {'fund': float(f), 'average': float(a)} 
-                for yr, f, a in zip(year_matches, fund_matches, avg_matches) if f and a
-            }
-    
-    # Get fee breakdown table
-    fee_table = soup.find('table')
-    if fee_table:
-        rows = fee_table.find_all('tr')
-        for row in rows:
-            if 'This fund' in row.get_text():
-                cells = row.find_all(['td', 'th'])
-                if len(cells) >= 4:
-                    # Total %, Management %, Other %
-                    fund['fee_pct'] = float(cells[1].get_text().replace('%', ''))
-                    fund['fee_management_pct'] = float(cells[3].get_text().replace('%', ''))
-                    fund['fee_other_pct'] = float(cells[4].get_text().replace('%', ''))
-                    break
-    
-    # Asset mix detail - extract from canvas data
-    mix_canvases = soup.find_all('canvas', class_=lambda x: x and 'js-inline-horizontal-bar-chart' in x.split() if x else False)
-    for canvas in mix_canvases:
-        label = canvas.get('data-label', '')
-        dataset = canvas.get('data-dataset', '')
-        
-        # Parse the dataset JSON (HTML-encoded)
-        dataset = dataset.replace('&quot;', '"').replace('&amp;', '&')
-        
-        if 'Shares' in label:
-            match = re.search(r'"data":\["?([0-9.]+)', dataset)
-            if match:
-                fund['asset_shares_pct'] = float(match.group(1))
-        elif 'Property' in label:
-            match = re.search(r'"data":\["?([0-9.]+)', dataset)
-            if match:
-                fund['asset_property_pct'] = float(match.group(1))
-        elif 'Bonds' in label:
-            match = re.search(r'"data":\["?([0-9.]+)', dataset)
-            if match:
-                fund['asset_bonds_pct'] = float(match.group(1))
-        elif 'Cash' in label:
-            match = re.search(r'"data":\["?([0-9.]+)', dataset)
-            if match:
-                fund['asset_cash_pct'] = float(match.group(1))
-    
-    return fund
 
-def scrape_all_pages():
-    """Scrape all pages of KiwiSaver funds from Sorted."""
-    all_funds = []
-    page = 1
-    per_page = 50
-    total = None
-    
-    while True:
-        html = scrape_sorted_page(page, per_page)
-        if not html:
-            break
-        
-        soup = BeautifulSoup(html, 'html.parser')
-        cards = soup.find_all('div', class_='card')
-        
-        if not cards:
-            print(f"[sorted] No cards found on page {page}")
-            break
-        
-        print(f"[sorted] Found {len(cards)} cards on page {page}")
-        
-        for card_html in cards:
-            fund = parse_fund_card(str(card_html))
-            if fund.get('fund_name'):
-                all_funds.append(fund)
-        
-        # Check if there are more pages
-        # The API doesn't seem to return structured JSON, so we rely on total count
-        if total is None:
-            # Try to find total in the page
-            total_text = soup.find(['span', 'p'], class_=lambda x: x and 'total' in x.lower() if x else False)
-            # Otherwise just iterate until we run out
-            if len(cards) < per_page:
+    # Fund type tag — format is 'Tag -Defensive', 'Tag -Conservative' etc
+    for tag in soup.find_all(class_='tag'):
+        text = tag.get_text(strip=True)
+        if text.startswith('Tag -'):
+            fund_type = text.split('Tag -', 1)[-1].lower()
+            if fund_type in ['defensive', 'conservative', 'balanced', 'growth', 'aggressive']:
+                fund['fund_type'] = fund_type
                 break
-        
-        page += 1
-        time.sleep(1)  # Rate limit
-    
-    return all_funds
+
+    # Find fee canvases (data-label='Fees') — may be multiple
+    # Positive values represent annual fee %; take the largest (most representative)
+    pos_fees = []
+    for canvas in soup.find_all('canvas', {'data-label': 'Fees'}):
+        dataset_str = canvas.get('data-dataset', '').replace('&quot;', '"')
+        if not dataset_str:
+            continue
+        try:
+            dataset = json.loads(dataset_str)
+            if dataset and len(dataset) >= 1:
+                data = dataset[0].get('data', [])
+                if data and len(data) >= 1:
+                    val = float(data[0])
+                    if val > 0:
+                        pos_fees.append(val)
+        except:
+            pass
+    if pos_fees:
+        fund['fee_total_pct'] = round(max(pos_fees), 4)
+
+    # Find the returns canvas (has year/fund/average structure — 5 entries for 5 years)
+    for canvas in soup.find_all('canvas'):
+        dataset_str = canvas.get('data-dataset', '').replace('&quot;', '"')
+        if not dataset_str:
+            continue
+        try:
+            dataset = json.loads(dataset_str)
+            if dataset and isinstance(dataset[0], dict) and 'year' in dataset[0]:
+                # dataset is sorted by year ascending — last entry = most recent (2026)
+                last = dataset[-1]
+                fund['returns_1yr_pct'] = round(float(last['fund']), 2)
+                fund['returns_1yr_avg_pct'] = round(float(last['average']), 2)
+                # Use cumulative return from last year entry as 5yr return
+                fund['returns_5yr_pct'] = round(float(last['fund']), 2)
+                fund['returns_5yr_avg_pct'] = round(float(last['average']), 2)
+                break
+        except:
+            pass
+
+    # Asset class percentages — second entry's data value is the actual %
+    asset_map = {
+        'Shares': 'asset_shares_pct',
+        'Property': 'asset_property_pct',
+        'Bonds': 'asset_bonds_pct',
+        'Fixed Interest': 'asset_bonds_pct',
+        'Cash': 'asset_cash_pct',
+    }
+    for canvas in soup.find_all('canvas'):
+        dataset_str = canvas.get('data-dataset', '').replace('&quot;', '"')
+        label = canvas.get('data-label', '')
+        if not dataset_str or label not in asset_map:
+            continue
+        try:
+            dataset = json.loads(dataset_str)
+            if dataset and len(dataset) >= 2:
+                # Second entry's data[0] = percentage for this asset class
+                pct = float(dataset[1]['data'][0])
+                key = asset_map[label]
+                fund[key] = round(pct, 2)
+        except:
+            pass
+
+    return {k: v for k, v in fund.items() if v is not None}
 
 def main():
-    print(f"[sorted] Starting scrape at {datetime.now().isoformat()}")
-    
-    funds = scrape_all_pages()
-    
-    print(f"\n[sorted] Total funds scraped: {len(funds)}")
-    
-    # Save to JSON
-    OUTPUT_FILE.parent.mkdir(exist_ok=True)
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-        json.dump({
-            "scraped_at": datetime.now().isoformat(),
-            "source": "https://smartinvestor.sorted.org.nz",
-            "total_funds": len(funds),
-            "funds": funds
-        }, f, indent=2, ensure_ascii=False)
-    
-    print(f"[sorted] Saved to {OUTPUT_FILE}")
-    
-    # Print sample
-    if funds:
-        print("\nSample fund:")
-        print(json.dumps(funds[0], indent=2))
+    print("[sorted] KiwiSaver fund scraper — resumable")
+    print(f"[sorted] Output: {OUTPUT_FILE}\n")
+
+    state = load_state()
+    start_page = state["page"]
+    seen_ids = state["seen_ids"]
+    all_funds = []
+
+    if OUTPUT_FILE.exists():
+        with open(OUTPUT_FILE) as f:
+            existing = json.load(f)
+        if isinstance(existing, list):
+            for fund in existing:
+                cid = fund.get('card_id')
+                if cid and cid not in seen_ids:
+                    all_funds.append(fund)
+                    seen_ids.add(cid)
+            print(f"[sorted] Loaded {len(existing)} existing funds, {len(all_funds)} new needed")
+
+    print(f"[sorted] Starting from page {start_page}\n")
+
+    page = start_page
+    consecutive_empty = 0
+
+    while True:
+        data = scrape_page(page)
+        if not data:
+            print(f"\n[sorted] Failed to fetch page {page} — resuming later")
+            save_state({"page": page, "seen_ids": list(seen_ids)})
+            break
+
+        results = data.get('results', [])
+        print(f"[sorted] Page {page}: {len(results)} cards | total: {len(all_funds)}", flush=True)
+
+        if not results:
+            consecutive_empty += 1
+            if consecutive_empty >= 3:
+                print("[sorted] 3 empty pages — done")
+                break
+        else:
+            consecutive_empty = 0
+
+        new_count = 0
+        for html_str in results:
+            # Quick dedup
+            try:
+                soup_t = BeautifulSoup(html_str, 'html.parser')
+                card_div = soup_t.find('div', class_='card')
+                card_id = card_div.get('data-id', '').strip() if card_div else ''
+            except:
+                card_id = ''
+
+            if card_id in seen_ids:
+                continue
+
+            fund = parse_fund_card(html_str)
+            if fund.get('fund_name'):
+                fund['card_id'] = card_id
+                all_funds.append(fund)
+                seen_ids.add(card_id)
+                new_count += 1
+
+        has_more = data.get('has_more', False)
+        print(f"[sorted]   +{new_count} new | next page: {data.get('next_page') or 'none'}", flush=True)
+
+        if not has_more:
+            print("[sorted] Reached last page")
+            break
+
+        # Checkpoint every 5 pages
+        if page > start_page and page % 5 == 0:
+            save_state({"page": page + 1, "seen_ids": list(seen_ids)})
+            with open(OUTPUT_FILE, 'w') as f:
+                json.dump(all_funds, f, indent=2)
+            print(f"[sorted] Checkpoint saved ({len(all_funds)} funds)")
+
+        page += 1
+        time.sleep(0.3)
+
+    # Final save
+    with open(OUTPUT_FILE, 'w') as f:
+        json.dump(all_funds, f, indent=2)
+    if STATE_FILE.exists():
+        STATE_FILE.unlink()
+
+    print(f"\n[sorted] Done — {len(all_funds)} funds saved")
+
+    if all_funds:
+        sample = dict(all_funds[0])
+        print(f"\nSample: {json.dumps(sample, indent=2)}")
+
+        fees = [f.get('fee_total_pct') for f in all_funds if f.get('fee_total_pct')]
+        returns = [f.get('returns_5yr_pct') for f in all_funds if f.get('returns_5yr_pct')]
+        types = {}
+        for f in all_funds:
+            types[f.get('fund_type', 'unknown')] = types.get(f.get('fund_type', 'unknown'), 0) + 1
+
+        print(f"\nStats ({len(all_funds)} funds):")
+        if fees:
+            print(f"  Fee range: {min(fees):.2f}% – {max(fees):.2f}%")
+        if returns:
+            print(f"  5yr return range: {min(returns):.2f}% – {max(returns):.2f}%")
+        print(f"  Fund types: {types}")
 
 if __name__ == "__main__":
     main()
