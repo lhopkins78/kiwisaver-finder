@@ -1,0 +1,62 @@
+[
+  {
+    "scheme": "Simplicity",
+    "fund_name": "Simplicity Growth Fund",
+    "type_equity_pct": 80,
+    "type_bonds_pct": 20,
+    "geo_nz_pct": 20,
+    "geo_aus_pct": 25,
+    "geo_global_pct": 55,
+    "currency_hedged": false,
+    "fee_pct": 0.10,
+    "active_passive": "passive",
+    "benchmark_5yr_pct": 8.1,
+    "returns_5yr_pct": 8.2,
+    "recommendation": "recommended"
+  },
+  {
+    "scheme": "Kernel",
+    "fund_name": "Kernel Global 100",
+    "type_equity_pct": 100,
+    "type_bonds_pct": 0,
+    "geo_nz_pct": 0,
+    "geo_aus_pct": 0,
+    "geo_global_pct": 100,
+    "currency_hedged": false,
+    "fee_pct": 0.20,
+    "active_passive": "passive",
+    "benchmark_5yr_pct": 8.2,
+    "returns_5yr_pct": 8.4,
+    "recommendation": "recommended"
+  },
+  {
+    "scheme": "Booster",
+    "fund_name": "Booster Growth Fund",
+    "type_equity_pct": 85,
+    "type_bonds_pct": 15,
+    "geo_nz_pct": 30,
+    "geo_aus_pct": 20,
+    "geo_global_pct": 50,
+    "currency_hedged": true,
+    "fee_pct": 0.65,
+    "active_passive": "active",
+    "benchmark_5yr_pct": 8.1,
+    "returns_5yr_pct": 7.4,
+    "recommendation": "review"
+  },
+  {
+    "scheme": "ANZ",
+    "fund_name": "ANZ Growth Fund",
+    "type_equity_pct": 80,
+    "type_bonds_pct": 20,
+    "geo_nz_pct": 35,
+    "geo_aus_pct": 25,
+    "geo_global_pct": 40,
+    "currency_hedged": true,
+    "fee_pct": 0.95,
+    "active_passive": "active",
+    "benchmark_5yr_pct": 8.1,
+    "returns_5yr_pct": 6.8,
+    "recommendation": "avoid"
+  }
+]
