@@ -1,0 +1,375 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --text: #1a1a1a;
+    --text-muted: #666;
+    --border: #e2e0db;
+    --sage: #8b9d8a;
+    --sage-light: #e8ede6;
+    --burgundy: #7d3e39;
+    --green: #2d8a4e;
+    --red: #c0392b;
+    --amber: #d97706;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+header {
+    background: var(--surface);
+    border-bottom: 3px solid var(--sage);
+    padding: 40px 0 30px;
+}
+
+header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.tagline {
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-size: 1.1rem;
+}
+
+main {
+    padding: 50px 0;
+}
+
+.intro {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 40px;
+    border: 1px solid var(--border);
+}
+
+.intro p {
+    font-size: 1.1rem;
+    max-width: 700px;
+}
+
+.intro strong {
+    color: var(--burgundy);
+}
+
+.questionnaire {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 40px;
+    border: 1px solid var(--border);
+}
+
+.questionnaire h2 {
+    font-size: 1.3rem;
+    margin-bottom: 25px;
+}
+
+.step h3 {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 15px;
+}
+
+.options {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.options button {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 24px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.15s;
+    min-width: 130px;
+}
+
+.options button:hover {
+    border-color: var(--sage);
+    background: var(--sage-light);
+}
+
+.options button .icon {
+    display: block;
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+}
+
+.options button small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.step input[type="number"] {
+    width: 120px;
+    padding: 12px 16px;
+    font-size: 1.1rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    margin-right: 12px;
+}
+
+.step button {
+    background: var(--sage);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.step button:hover {
+    background: #7a8d79;
+}
+
+.hidden {
+    display: none;
+}
+
+.results {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 40px;
+    border: 1px solid var(--border);
+}
+
+.results h2 {
+    font-size: 1.3rem;
+    margin-bottom: 25px;
+}
+
+.rec-section {
+    margin-bottom: 35px;
+}
+
+.rec-section h3 {
+    font-size: 1rem;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rec-section h3 .count {
+    background: var(--sage-light);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.fund-card {
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.fund-card.recommended {
+    border-left: 4px solid var(--green);
+}
+
+.fund-card.avoid {
+    border-left: 4px solid var(--red);
+}
+
+.fund-card.review {
+    border-left: 4px solid var(--amber);
+}
+
+.fund-info h4 {
+    font-size: 1rem;
+    margin-bottom: 6px;
+}
+
+.fund-info .scheme {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+}
+
+.fund-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.fund-meta span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.fund-stats {
+    text-align: right;
+    min-width: 180px;
+}
+
+.fund-stats .fee {
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.fund-stats .fee.high {
+    color: var(--red);
+}
+
+.fund-stats .fee.low {
+    color: var(--green);
+}
+
+.fund-stats .fee.medium {
+    color: var(--amber);
+}
+
+.fund-stats .returns {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.fund-stats .fee-impact {
+    font-size: 0.8rem;
+    color: var(--red);
+    margin-top: 6px;
+}
+
+.methodology {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 40px;
+    border: 1px solid var(--border);
+}
+
+.methodology h2 {
+    font-size: 1.3rem;
+    margin-bottom: 20px;
+}
+
+.method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.method-item {
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.method-item h4 {
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+}
+
+.method-item p {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.all-funds {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 30px;
+    border: 1px solid var(--border);
+}
+
+.all-funds h2 {
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+}
+
+.filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.filters select {
+    padding: 10px 16px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: var(--bg);
+}
+
+.fund-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 40px;
+}
+
+footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 30px 0;
+    margin-top: 40px;
+}
+
+footer p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+footer .small {
+    font-size: 0.8rem;
+    margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+    .method-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .fund-card {
+        flex-direction: column;
+    }
+    
+    .fund-stats {
+        text-align: left;
+    }
+    
+    .fund-meta {
+        flex-wrap: wrap;
+    }
+}

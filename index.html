@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KiwiSaver Fund Finder — Recommended, Not Ranked</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>KiwiSaver Fund Finder</h1>
+            <p class="tagline">We tell you what to avoid and why. No sortable tables required.</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="intro">
+            <p>KiwiSaver funds charge anywhere from <strong>0.08% to 1.5%+</strong> per year. 
+            Over 30 years, a 1.2% fee fund will cost you <strong>$100,000+ more</strong> than a 0.2% passive alternative.
+            We find the funds worth being in and flag the ones that aren't.</p>
+        </section>
+
+        <section class="questionnaire">
+            <h2>What are you looking for?</h2>
+            
+            <div class="step" id="step-goal">
+                <h3>1. What are you saving for?</h3>
+                <div class="options">
+                    <button onclick="selectGoal('retirement')">
+                        <span class="icon">🏖️</span>
+                        <span>Retirement<br><small>10+ years away</small></span>
+                    </button>
+                    <button onclick="selectGoal('home')">
+                        <span class="icon">🏠</span>
+                        <span>First Home<br><small>Within 5 years</small></span>
+                    </button>
+                    <button onclick="selectGoal('switching')">
+                        <span class="icon">🔄</span>
+                        <span>Already saving<br><small>Just want a better fund</small></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="step hidden" id="step-type">
+                <h3>2. What's your current fund type?</h3>
+                <div class="options">
+                    <button onclick="selectType('conservative')">Conservative<br><small>20-40% equities</small></button>
+                    <button onclick="selectType('balanced')">Balanced<br><small>50-70% equities</small></button>
+                    <button onclick="selectType('growth')">Growth<br><small>70-85% equities</small></button>
+                    <button onclick="selectType('aggressive')">Aggressive<br><small>85-100% equities</small></button>
+                    <button onclick="selectType('unknown')">Not sure<br><small>Suggest based on my age</small></button>
+                </div>
+            </div>
+
+            <div class="step hidden" id="step-age">
+                <h3>3. Your age?</h3>
+                <input type="number" id="age" min="18" max="80" placeholder="e.g. 35">
+                <button onclick="showResults()">Show me my recommendations →</button>
+            </div>
+        </section>
+
+        <section class="results hidden" id="results">
+            <h2>Your Recommendations</h2>
+            <div id="recommended-list"></div>
+            <div id="avoid-list"></div>
+        </section>
+
+        <section class="methodology">
+            <h2>How It Works</h2>
+            <div class="method-grid">
+                <div class="method-item">
+                    <h4>📊 Fee Impact First</h4>
+                    <p>Fees compound just like returns — but in reverse. A 1% fee vs 0.2% fee costs you hundreds of thousands over 30 years. We show this prominently.</p>
+                </div>
+                <div class="method-item">
+                    <h4>🎯 Avoid Algorithm</h4>
+                    <p>Funds are flagged "Avoid" if: fee >1%, OR fee >0.8% and underperforming benchmark, OR active fund that has missed benchmark for 3+ years.</p>
+                </div>
+                <div class="method-item">
+                    <h4>📈 Benchmark Comparison</h4>
+                    <p>Every fund is measured against a relevant index. Outperforming matters — but only after fees. A fund that beats benchmark by 0.3% but charges 1.2% is still losing you money vs a passive alternative.</p>
+                </div>
+                <div class="method-item">
+                    <h4>🔒 No ESG Scoring</h4>
+                    <p>Pure financial performance. Fees, returns, and what you actually own. Nothing else.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="all-funds">
+            <h2>All Funds</h2>
+            <p>Browse the full database. Filter by type or provider.</p>
+            <div class="filters">
+                <select id="filter-type">
+                    <option value="">All Types</option>
+                    <option value="defensive">Defensive (0-30% equity)</option>
+                    <option value="conservative">Conservative (10-35% equity)</option>
+                    <option value="balanced">Balanced (35-63% equity)</option>
+                    <option value="growth">Growth (63-90% equity)</option>
+                    <option value="aggressive">Aggressive (90%+ equity)</option>
+                </select>
+                <select id="filter-recommendation">
+                    <option value="">All Funds</option>
+                    <option value="recommended">✅ Recommended (Low Fee)</option>
+                    <option value="review">⚠️ Review</option>
+                    <option value="avoid">❌ Avoid (High Fee/Underperforming)</option>
+                </select>
+            </div>
+            <div id="fund-list" class="fund-list">
+                <p class="empty-state">Fund data loading... This tool is in early development.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Open source. Community-maintained data. Corrections welcome via GitHub PR.</p>
+            <p class="small">Data sourced from scheme disclosure statements, Companies Office registry, and Sorted.org.nz. 
+            Figures are indicative. Always verify with the provider before making financial decisions.</p>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
