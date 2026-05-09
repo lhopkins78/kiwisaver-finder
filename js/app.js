@@ -30,45 +30,34 @@ function recommendFund(fund) {
     const retAvg = fund.returns_5yr_avg_pct || 0;
 
     // NZ passive benchmark: Simplicity 0.10%, Kernel 0.20%, Smartshares 0.30-0.50%
-    // Any fund <0.70% is in passive territory — compare to benchmark returns
-    if (fee < 0.70) {
-        // Passive fund — check if it performs acceptably vs average
-        if (ret != null && retAvg != null) {
-            if (ret >= retAvg * 0.9) {
-                // Within 90% of average — it's tracking the index well
-                return { status: 'recommended', reasons: [] };
-            } else {
-                // Significantly below average for a passive fund — minor concern
-                return {
-                    status: 'review',
-                    reasons: [`Return ${ret.toFixed(1)}% vs avg ${retAvg.toFixed(1)}% — below passive benchmark`]
-                };
-            }
+    // Low-fee passive boundary: any fund under 0.85% can be considered passive
+    // Active funds above 0.85% must earn their fee premium through outperformance
+    if (fee < 0.85) {
+        if (ret != null && retAvg != null && ret >= retAvg * 0.85) {
+            return { status: 'recommended', reasons: [] };
         }
-        // No return data but low fee — tentatively recommended
-        return { status: 'recommended', reasons: [] };
+        return { status: 'review', reasons: [] };
     }
 
-    // Active fund >0.70% — must justify the fee premium
+    // Fee >0.85% — high-fee territory, must justify
     if (fee > 1.0) {
         return {
             status: 'avoid',
             reasons: [
-                `Fees ${fee.toFixed(2)}% — passive alternative under 0.7%`,
+                `Fees ${fee.toFixed(2)}% — passive alternative under 0.85%`,
                 ret != null && retAvg != null && ret < retAvg
                     ? `Underperformed benchmark by ${(retAvg - ret).toFixed(1)}% over 5 years`
-                    : 'Active fees not justified without strong outperformance'
+                    : 'Active management fees not justified here'
             ]
         };
     }
 
-
-    // 0.70-1.0% active fund — review if underperforming
-    if (ret != null && retAvg != null && ret < retAvg - 0.5) {
+    // 0.85-1.0% — active fund, marginal value
+    if (ret != null && retAvg != null && ret < retAvg - 1.0) {
         return {
             status: 'avoid',
             reasons: [
-                `Fees ${fee.toFixed(2)}% — marginal value`,
+                `Fees ${fee.toFixed(2)}% — marginal`,
                 `Underperformed benchmark by ${(retAvg - ret).toFixed(1)}%`
             ]
         };
